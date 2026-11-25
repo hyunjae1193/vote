@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>개표 현황</title>
+<style>
+  :root {
+    --bg: #fbfbf8;
+    --green: #2c5016;        /* template band */
+    --o: #1f4a2c;            /* deep forest green */
+    --o-tint: rgba(31, 74, 44, 0.06);
+    --x: #2b2e33;            /* graphite */
+    --x-tint: rgba(43, 46, 51, 0.05);
+    --ink: #1c1f1a;
+    --muted: #8b8f86;
+    --hair: #e4e6df;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: "Apple SD Gothic Neo", "AppleSDGothicNeo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body.hide-cursor, body.hide-cursor * { cursor: none !important; }
+
+  #app {
+    width: 100vw; height: 100vh;
+    display: grid;
+    grid-template-rows: 19vh 1fr 7vh 20vh;
+  }
+
+  /* header */
+  header {
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    gap: 1vh; padding: 0 4vw 1.5vh;
+  }
+  .eyebrow { font-size: 1.9vh; font-weight: 600; letter-spacing: 0.35em; color: var(--muted); padding-left: 0.35em; }
+  .editable {
+    outline: none; text-align: center; max-width: 84vw; white-space: nowrap; overflow: hidden;
+    border-radius: 0.8vh; padding: 0 1vw; border: 0.15vh dashed transparent;
+  }
+  .editable:hover { border-color: var(--hair); }
+  .editable:focus { border-color: var(--o); background: var(--o-tint); }
+  #title { font-size: 6vh; font-weight: 800; color: var(--o); line-height: 1.15; letter-spacing: -0.03em; }
+  #candidate { font-size: 3.2vh; font-weight: 500; color: #4a4e47; line-height: 1.2; letter-spacing: -0.01em; }
+  .rule { width: 4vw; height: 0.35vh; background: var(--green); border-radius: 0.2vh; margin-top: 0.4vh; }
+
+  /* counts */
+  main { position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 0 6vw; min-height: 0; }
+  main::after {
+    content: ""; position: absolute; left: 50%; top: 12%; bottom: 12%; width: 1px; background: var(--hair);
+  }
+  .side { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; border-radius: 2vh; }
+  .glow { position: absolute; inset: 4% 6%; border-radius: 2vh; opacity: 0; pointer-events: none; }
+  .o .glow { background: var(--o-tint); }
+  .x .glow { background: var(--x-tint); }
+  .label { position: relative; display: flex; align-items: center; gap: 1.2vh; font-size: 3.6vh; font-weight: 700; letter-spacing: 0.02em; }
+  .o .label { color: var(--o); }
+  .x .label { color: var(--x); }
+  .mark { width: 3.2vh; height: 3.2vh; flex: none; }
+  .num {
+    position: relative; font-size: min(31vh, 22vw); font-weight: 700; line-height: 1.02;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.04em; will-change: transform;
+  }
+  .o .num { color: var(--o); }
+  .x .num { color: var(--x); }
+
+  /* ratio bar */
+  .barwrap { padding: 0 6vw; display: flex; flex-direction: column; justify-content: center; gap: 1vh; }
+  .barlabels { display: flex; justify-content: space-between; font-size: 2.2vh; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .barlabels .lo { color: var(--o); }
+  .barlabels .lx { color: var(--x); }
+  .bar { display: flex; gap: 0.4vh; width: 100%; height: 1.4vh; background: #eceee8; border-radius: 1vh; overflow: hidden; }
+  .bar div { height: 100%; width: 0; transition: width 0.5s cubic-bezier(.2,.8,.2,1); }
+  #barO { background: var(--o); border-radius: 1vh; }
+  #barX { background: var(--x); border-radius: 1vh; }
+
+  /* green band, matching the presentation template */
+  .band { margin-top: 2vh; background: var(--green); color: #ffffff; display: grid; grid-template-rows: 1fr 3vh; padding: 0 4vw; }
+  .band-main { display: grid; grid-template-columns: 1.25fr 1fr 1fr; align-items: center; min-height: 0; }
+  .band-main > div { height: 70%; display: flex; align-items: center; }
+  .band-main > div + div { border-left: 1px solid rgba(255, 255, 255, 0.18); }
+  .stats { gap: 3.5vw; }
+  .stat .k { font-size: 1.7vh; font-weight: 600; letter-spacing: 0.08em; opacity: 0.65; margin-bottom: 0.6vh; }
+  .stat .v { font-size: 4.6vh; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1; }
+  .stat .v small { font-size: 2.4vh; font-weight: 600; margin-left: 0.3vh; opacity: 0.8; }
+  .verdictbox { flex-direction: column; justify-content: center; }
+  .verdictbox .k { font-size: 1.7vh; font-weight: 600; letter-spacing: 0.08em; opacity: 0.65; margin-bottom: 0.6vh; }
+  #verdict { font-size: 6.8vh; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  #verdict.idle { opacity: 0.55; }
+  .logbox { justify-content: flex-end; }
+  .log {
+    font-size: 1.9vh; line-height: 1.55; color: rgba(255, 255, 255, 0.55); font-variant-numeric: tabular-nums;
+    display: grid; grid-template-columns: auto auto; column-gap: 2.4vw; grid-auto-flow: column; grid-template-rows: repeat(5, auto);
+  }
+  .log b { color: #ffffff; font-weight: 700; margin-left: 0.4vh; }
+  .log .latest { color: #ffffff; }
+
+  .strip { position: relative; display: flex; align-items: flex-start; justify-content: center; }
+  #hint { font-size: 1.6vh; letter-spacing: 0.03em; color: rgba(255, 255, 255, 0.6); transition: opacity 0.4s; }
+  #hint.gone { opacity: 0; pointer-events: none; }
+  #resetBtn {
+    position: absolute; left: 0; top: 0;
+    font: inherit; font-size: 1.4vh; color: rgba(255, 255, 255, 0.45); background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 0.6vh; padding: 0.1vh 0.8vw; cursor: pointer;
+  }
+  #resetBtn:hover { color: #ffffff; border-color: rgba(255, 255, 255, 0.8); }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 24vh; transform: translateX(-50%);
+    background: rgba(28, 31, 26, 0.92); color: #ffffff;
+    font-size: 2.6vh; font-weight: 600; padding: 1vh 2.4vw; border-radius: 1.2vh;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 10;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="eyebrow">2027 국제통상학과</div>
+    <div class="editable" id="title" contenteditable="plaintext-only" spellcheck="false"></div>
+    <div class="editable" id="candidate" contenteditable="plaintext-only" spellcheck="false"></div>
+  </header>
+
+  <main>
+    <section class="side o" id="sideO">
+      <div class="glow"></div>
+      <div class="label">
+        <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="9"/></svg>
+        찬성
+      </div>
+      <div class="num" id="numO">0</div>
+    </section>
+    <section class="side x" id="sideX">
+      <div class="glow"></div>
+      <div class="label">
+        <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 5L19 19M19 5L5 19"/></svg>
+        반대
+      </div>
+      <div class="num" id="numX">0</div>
+    </section>
+  </main>
+
+  <div class="barwrap">
+    <div class="barlabels"><span class="lo" id="barPctO"></span><span class="lx" id="barPctX"></span></div>
+    <div class="bar"><div id="barO"></div><div id="barX"></div></div>
+  </div>
+
+  <div class="band">
+    <div class="band-main">
+      <div class="stats">
+        <div class="stat"><div class="k">총 개표</div><div class="v" id="total"></div></div>
+        <div class="stat"><div class="k">찬성 비율</div><div class="v" id="pctO"></div></div>
+        <div class="stat"><div class="k">반대 비율</div><div class="v" id="pctX"></div></div>
+      </div>
+      <div class="verdictbox"><div class="k">현재 현황</div><div id="verdict"></div></div>
+      <div class="logbox"><div class="log" id="log"></div></div>
+    </div>
+    <div class="strip">
+      <button id="resetBtn" type="button">초기화</button>
+      <div id="hint">1 찬성 &nbsp;/&nbsp; 2 반대 &nbsp;/&nbsp; 0 직전 취소 &nbsp;/&nbsp; Tab 선거 전환 &nbsp;/&nbsp; F 전체화면</div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+(function () {
+  var KEY = "voteCounterState.v2";
+  var SLOTS = ["a", "b"];
+  var NAMES = { a: "첫 번째 투표", b: "두 번째 투표" };
+  var DEFAULT_TITLE = "2027학년도 임원진 선출 투표";
+
+  function defaults() {
+    return {
+      active: "a",
+      elections: {
+        a: { title: DEFAULT_TITLE, candidate: "후보자 이름", votes: [] },
+        b: { title: DEFAULT_TITLE, candidate: "후보자 이름", votes: [] }
+      }
+    };
+  }
+
+  function load() {
+    var base = defaults();
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return base;
+      var s = JSON.parse(raw);
+      if (SLOTS.indexOf(s.active) >= 0) base.active = s.active;
+      SLOTS.forEach(function (k) {
+        var e = s.elections && s.elections[k];
+        if (!e) return;
+        if (typeof e.title === "string") base.elections[k].title = e.title;
+        if (typeof e.candidate === "string") base.elections[k].candidate = e.candidate;
+        if (Array.isArray(e.votes)) base.elections[k].votes = e.votes.filter(function (v) { return v === "O" || v === "X"; });
+      });
+    } catch (err) {}
+    return base;
+  }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (err) {}
+  }
+
+  var state = load();
+  var hintDismissed = false;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var el = {
+    app: $("app"), title: $("title"), candidate: $("candidate"),
+    numO: $("numO"), numX: $("numX"), sideO: $("sideO"), sideX: $("sideX"),
+    barO: $("barO"), barX: $("barX"), barPctO: $("barPctO"), barPctX: $("barPctX"),
+    total: $("total"), pctO: $("pctO"), pctX: $("pctX"),
+    verdict: $("verdict"), log: $("log"), hint: $("hint"),
+    toast: $("toast"), reset: $("resetBtn")
+  };
+
+  function cur() { return state.elections[state.active]; }
+
+  function counts(votes) {
+    var o = 0;
+    for (var i = 0; i < votes.length; i++) if (votes[i] === "O") o++;
+    return { o: o, x: votes.length - o };
+  }
+
+  function pct(n, total) { return total === 0 ? "0.0" : (n / total * 100).toFixed(1); }
+
+  function setValue(node, value, unit) {
+    node.textContent = value;
+    var s = document.createElement("small");
+    s.textContent = unit;
+    node.appendChild(s);
+  }
+
+  function render() {
+    var e = cur();
+    var c = counts(e.votes);
+    var total = e.votes.length;
+    var po = pct(c.o, total), px = pct(c.x, total);
+
+    if (document.activeElement !== el.title) el.title.textContent = e.title;
+    if (document.activeElement !== el.candidate) el.candidate.textContent = e.candidate;
+
+    el.numO.textContent = c.o;
+    el.numX.textContent = c.x;
+
+    el.barO.style.width = total ? (c.o / total * 100) + "%" : "0%";
+    el.barX.style.width = total ? (c.x / total * 100) + "%" : "0%";
+    el.barPctO.textContent = "찬성 " + po + "%";
+    el.barPctX.textContent = "반대 " + px + "%";
+
+    setValue(el.total, total, "표");
+    setValue(el.pctO, po, "%");
+    setValue(el.pctX, px, "%");
+
+    var v = el.verdict;
+    if (total === 0) { v.textContent = "개표 전"; v.className = "idle"; }
+    else if (c.o > c.x) { v.textContent = "찬성 우세"; v.className = ""; }
+    else if (c.x > c.o) { v.textContent = "반대 우세"; v.className = ""; }
+    else { v.textContent = "동률"; v.className = ""; }
+
+    renderLog(e.votes);
+  }
+
+  function renderLog(votes) {
+    el.log.textContent = "";
+    var start = Math.max(0, votes.length - 10);
+    for (var i = votes.length - 1; i >= start; i--) {
+      var row = document.createElement("div");
+      if (i === votes.length - 1) row.className = "latest";
+      row.appendChild(document.createTextNode((i + 1) + "번째 표"));
+      var b = document.createElement("b");
+      b.textContent = votes[i];
+      row.appendChild(b);
+      el.log.appendChild(row);
+    }
+  }
+
+  /* effects */
+  function pop(node) {
+    node.animate([{ transform: "scale(1)" }, { transform: "scale(1.12)" }, { transform: "scale(1)" }],
+      { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" });
+  }
+  function flash(side) {
+    side.querySelector(".glow").animate([{ opacity: 0 }, { opacity: 1 }, { opacity: 0 }],
+      { duration: 320, easing: "ease-out" });
+  }
+  function shake(node) {
+    node.animate([
+      { transform: "translateX(0)" }, { transform: "translateX(-2vh)" }, { transform: "translateX(2vh)" },
+      { transform: "translateX(-1.2vh)" }, { transform: "translateX(1.2vh)" }, { transform: "translateX(0)" }
+    ], { duration: 320, easing: "ease-in-out" });
+  }
+
+  var toastTimer = null;
+  function toast(msg) {
+    el.toast.textContent = msg;
+    el.toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.toast.classList.remove("show"); }, 2000);
+  }
+
+  function dismissHint() {
+    if (hintDismissed) return;
+    hintDismissed = true;
+    el.hint.classList.add("gone");
+  }
+
+  /* actions */
+  function addVote(kind) {
+    cur().votes.push(kind);
+    save();
+    dismissHint();
+    render();
+    if (kind === "O") { pop(el.numO); flash(el.sideO); }
+    else { pop(el.numX); flash(el.sideX); }
+  }
+
+  function undoVote() {
+    dismissHint();
+    var votes = cur().votes;
+    if (votes.length === 0) { toast("취소할 기록이 없습니다"); return; }
+    var kind = votes.pop();
+    save();
+    render();
+    shake(kind === "O" ? el.numO : el.numX);
+    toast("직전 입력 취소됨 (" + kind + ")");
+  }
+
+  function switchElection() {
+    state.active = state.active === "a" ? "b" : "a";
+    save();
+    render();
+    el.app.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 250 });
+  }
+
+  function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    } catch (err) {}
+  }
+
+  function resetCurrent() {
+    var e = cur();
+    var msg = "지금 화면의 투표 (" + e.title + ") 기록 " + e.votes.length + "표를 모두 지웁니다.\n되돌릴 수 없습니다. 계속할까요?";
+    if (window.confirm(msg)) {
+      e.votes = [];
+      save();
+      render();
+      toast("기록을 초기화했습니다");
+    }
+  }
+
+  /* keyboard: event.code does not depend on the Korean IME state */
+  function isEditing() {
+    var a = document.activeElement;
+    return !!(a && a.isContentEditable);
+  }
+
+  document.addEventListener("keydown", function (ev) {
+    if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+
+    if (isEditing()) {
+      if (ev.code === "Enter" || ev.code === "NumpadEnter" || ev.code === "Escape") {
+        ev.preventDefault();
+        document.activeElement.blur();
+        render();
+      } else if (ev.code === "Tab") {
+        ev.preventDefault();
+        document.activeElement.blur();
+        switchElection();
+      }
+      return;
+    }
+
+    var handled = true;
+    switch (ev.code) {
+      case "Digit1": case "Numpad1": if (!ev.repeat) addVote("O"); break;
+      case "Digit2": case "Numpad2": if (!ev.repeat) addVote("X"); break;
+      case "Digit0": case "Numpad0": if (!ev.repeat) undoVote(); break;
+      case "Tab": if (!ev.repeat) switchElection(); break;
+      case "KeyF": if (!ev.repeat) toggleFullscreen(); break;
+      default: handled = false;
+    }
+    if (handled) ev.preventDefault();
+  }, true);
+
+  /* editable fields */
+  el.title.addEventListener("input", function () {
+    cur().title = el.title.textContent.replace(/\n/g, " ");
+    save();
+  });
+  el.candidate.addEventListener("input", function () {
+    cur().candidate = el.candidate.textContent.replace(/\n/g, " ");
+    save();
+  });
+  el.title.addEventListener("blur", render);
+  el.candidate.addEventListener("blur", render);
+
+  el.reset.addEventListener("click", function () {
+    el.reset.blur();
+    resetCurrent();
+  });
+
+  /* hide the cursor after 3 seconds without movement */
+  var cursorTimer = null;
+  function wakeCursor() {
+    document.body.classList.remove("hide-cursor");
+    clearTimeout(cursorTimer);
+    cursorTimer = setTimeout(function () { document.body.classList.add("hide-cursor"); }, 3000);
+  }
+  document.addEventListener("mousemove", wakeCursor);
+  wakeCursor();
+
+  /* keep the hint hidden if votes already exist from an earlier session */
+  if (state.elections.a.votes.length + state.elections.b.votes.length > 0) {
+    hintDismissed = true;
+    el.hint.classList.add("gone");
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
